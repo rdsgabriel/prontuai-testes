@@ -58,6 +58,49 @@ const getFileIcon = (file: { file: File | { type: string; name: string } }) => {
   return <FileIcon className="size-4 opacity-60" />
 }
 
+// Função para comparar exames usando OpenAI
+async function compararExamesComOpenAI(examesOCR: string[] | string, examesBRNET: string[] | string): Promise<string> {
+  // Garante que ambos sejam texto plano
+  const examesOCRText = Array.isArray(examesOCR) ? examesOCR.map((e) => `- ${e}`).join("\n") : String(examesOCR);
+  const examesBRNETText = Array.isArray(examesBRNET) ? examesBRNET.map((e) => `- ${e}`).join("\n") : String(examesBRNET);
+
+  const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY; // ou substitua diretamente com a chave (com cautela)
+
+  const prompt = `\nCompare os seguintes exames extraídos do prontuário com os exames previstos no BRNET.\n\n**Exames do prontuário (OCR):**\n${examesOCRText}\n\n**Exames previstos pelo BRNET:**\n${examesBRNETText}\n\nListe:\n1. Exames que coincidem.\n2. Exames que estão faltando no prontuário.\n3. Exames que estão no prontuário, mas não estavam previstos.\nSeja claro e direto.\n`;
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "Você é um assistente médico que compara exames de prontuário com os autorizados pelo sistema BRNET.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 600,
+    }),
+  });
+
+  if (!res.ok) {
+    const error = await res.text();
+    throw new Error(`Erro na OpenAI: ${error}`);
+  }
+
+  const data = await res.json();
+  const resposta = data.choices[0].message.content;
+  return resposta;
+}
+
 export default function Component({ onSystemMessage }: { onSystemMessage?: (msg: string) => void }) {
   const maxSize = 100 * 1024 * 1024 // 10MB default
   const maxFiles = 10
@@ -160,6 +203,17 @@ export default function Component({ onSystemMessage }: { onSystemMessage?: (msg:
       onSystemMessage?.(`Nome: ${rpaData.nome}`);
       console.log("→ Exames do BR MED:", rpaData.exames || "Nenhum");
       onSystemMessage?.(`Exames do BRNET: ${rpaData.exames || "Nenhum"}`);
+
+      // Chamar OpenAI para comparar exames
+      if (data.exames && rpaData.exames) {
+        try {
+          onSystemMessage?.("📄 Análise da OpenAI:");
+          const respostaOpenAI = await compararExamesComOpenAI(data.exames, rpaData.exames);
+          onSystemMessage?.(respostaOpenAI);
+        } catch (e: any) {
+          onSystemMessage?.("❌ Erro ao comparar exames com OpenAI: " + (e?.message || e));
+        }
+      }
   
     } catch (error) {
       console.error("❌ Erro geral no handleImport:", error);
