@@ -30,34 +30,22 @@ interface Message {
   isUser: boolean;
 }
 
-export default function Chat() {
+export default function Chat({
+  messages,
+  setMessages,
+  aiTyping,
+  setAiTyping,
+}: {
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  aiTyping: string;
+  setAiTyping: React.Dispatch<React.SetStateAction<string>>;
+}) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [aiTyping, setAiTyping] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Load history from localStorage on component mount
-  useEffect(() => {
-    try {
-      const savedHistory = localStorage.getItem("chat_history");
-      if (savedHistory) {
-        setMessages(JSON.parse(savedHistory));
-      }
-    } catch (error) {
-      console.error("Failed to load chat history:", error);
-      localStorage.removeItem("chat_history"); // Clear corrupted data
-    }
-  }, []); // Empty dependency array ensures this runs only once
-
-  // Save history to localStorage whenever it changes
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem("chat_history", JSON.stringify(messages));
-    }
-  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -143,7 +131,6 @@ export default function Chat() {
         ]);
       }
       setIsLoading(false);
-      setAiTyping("");
     } finally {
       setIsCancelling(false);
       abortControllerRef.current = null;
@@ -165,6 +152,11 @@ export default function Chat() {
       abortControllerRef.current.abort();
     }
   };
+
+  const addSystemMessage = (content: string) => {
+    setMessages((prev) => [...prev, { content, isUser: false }]);
+  };
+  
 
   return (
     <ScrollArea className="flex-1 [&>div>div]:h-full w-full shadow-md md:rounded-s-[inherit] min-[1024px]:rounded-e-3xl bg-background">

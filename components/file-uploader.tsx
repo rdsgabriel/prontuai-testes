@@ -58,7 +58,7 @@ const getFileIcon = (file: { file: File | { type: string; name: string } }) => {
   return <FileIcon className="size-4 opacity-60" />
 }
 
-export default function Component() {
+export default function Component({ onSystemMessage }: { onSystemMessage?: (msg: string) => void }) {
   const maxSize = 100 * 1024 * 1024 // 10MB default
   const maxFiles = 10
   const [isImporting, setIsImporting] = useState(false)
@@ -83,68 +83,91 @@ export default function Component() {
 
   // Função para importar o arquivo para o backend
   const handleImport = async () => {
-    if (files.length === 0 || isImporting) return
-
-    setIsImporting(true)
+    if (files.length === 0 || isImporting) return;
+  
+    setIsImporting(true);
+    onSystemMessage?.("Recebi seu arquivo, aguarde um pouquinho enquanto analiso...");
+  
     try {
-      const formData = new FormData()
-      let fileToSend = files[0].file
-      let fileName = files[0].file.name
-
+      const formData = new FormData();
+      let fileToSend = files[0].file;
+      let fileName = files[0].file.name;
+  
       if (!(fileToSend instanceof File)) {
-        // Se for FileMetadata, buscar o arquivo pela URL e converter para Blob
         try {
           const fileMeta = files[0].file as {
-            url: string
-            name: string
-            type: string
-          }
-          const response = await fetch(fileMeta.url)
-          const blob = await response.blob()
-          fileToSend = new File([blob], fileMeta.name, { type: fileMeta.type })
+            url: string;
+            name: string;
+            type: string;
+          };
+          const response = await fetch(fileMeta.url);
+          const blob = await response.blob();
+          fileToSend = new File([blob], fileMeta.name, { type: fileMeta.type });
         } catch (e) {
-          alert("Não foi possível obter o arquivo para envio.")
-          return
+          console.error("❌ Erro ao obter arquivo remoto:", e);
+          return;
         }
       }
-
-      formData.append("arquivo", fileToSend, fileName)
-
-      try {
-        const res = await fetch("http://localhost:8000/ocr", {
-          method: "POST",
-          body: formData,
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          console.error("Erro do backend:", data.erro || data)
-          alert("Erro ao processar o arquivo.")
-          return
-        }
-
-        // Enviar CPF para o RPA
-        if (data.cpf) {
-          const rpaRes = await fetch("http://localhost:8000/consultar-brmed", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cpf: data.cpf }),
-          });
-          const rpaData = await rpaRes.json();
-        }
-
-        console.log("✅ OCR finalizado:", data)
-        alert(`OCR concluído.\nCPF detectado: ${data.cpf || "Não encontrado"}`)
-      } catch (error) {
-        console.error("Erro ao enviar arquivo:", error)
-        alert("Erro de conexão com o servidor.")
+  
+      formData.append("arquivo", fileToSend, fileName);
+  
+      console.log("📤 Enviando arquivo para OCR...");
+  
+      const res = await fetch("http://localhost:8000/ocr", {
+        method: "POST",
+        body: formData,
+      });
+  
+      const data = await res.json();
+  
+      if (!res.ok) {
+        console.error("❌ Erro do backend OCR:", data.erro || data);
+        return;
       }
+  
+      console.log("✅ OCR finalizado:");
+      console.log("→ CPF detectado:", data.cpf || "Não encontrado");
+      onSystemMessage?.(`CPF detectado no documento: ${data.cpf || "Não encontrado"}`);
+      console.log("→ Exames extraídos do OCR:", data.exames || "Nenhum");
+      onSystemMessage?.(`Exames extraídos do documento: ${data.exames || "Nenhum"}`);
+  
+      if (!data.cpf) {
+        console.warn("⚠️ Nenhum CPF encontrado. Interrompendo consulta BR MED.");
+        onSystemMessage?.("⚠️ Nenhum CPF encontrado. Interrompendo consulta BR MED.");
+        return;
+      }
+  
+      console.log("🔍 Enviando CPF para consultar BR MED...");
+      onSystemMessage?.("Usando o CPF para consulta no BRNET...");
+  
+      const rpaRes = await fetch("http://localhost:8000/consultar-brmed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf: data.cpf }),
+      });
+  
+      const rpaData = await rpaRes.json();
+  
+      if (!rpaRes.ok || rpaData.erro) {
+        console.error("❌ Erro ao consultar BR MED:", rpaData.erro || rpaData);
+        onSystemMessage?.(`❌ Erro ao consultar BR MED: ${rpaData.erro || rpaData}`);
+        return;
+      }
+  
+      console.log("✅ Dados do BR MED recebidos:");
+      onSystemMessage?.("Dados do BRNET recebidos.");
+      console.log("→ Nome:", rpaData.nome);
+      onSystemMessage?.(`Nome: ${rpaData.nome}`);
+      console.log("→ Exames do BR MED:", rpaData.exames || "Nenhum");
+      onSystemMessage?.(`Exames do BRNET: ${rpaData.exames || "Nenhum"}`);
+  
+    } catch (error) {
+      console.error("❌ Erro geral no handleImport:", error);
     } finally {
-      setIsImporting(false)
+      setIsImporting(false);
     }
-  }
-
+  };
+  
   return (
     <div className="flex flex-col gap-2">
       {/* Drop area */}

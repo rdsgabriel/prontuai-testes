@@ -1,8 +1,6 @@
-import type { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Prontuário - IA",
-};
+import { useState, useEffect } from "react";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import {
@@ -17,7 +15,72 @@ import {
 } from "@/components/settings-panel";
 import Chat from "@/components/chat";
 
+// Definir o tipo Message
+interface Message {
+  content: string;
+  isUser: boolean;
+}
+
 export default function Page() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [aiTyping, setAiTyping] = useState("");
+  const [systemQueue, setSystemQueue] = useState<string[]>([]);
+  const [isTypingSystem, setIsTypingSystem] = useState(false);
+
+  // Processa a fila de mensagens do sistema
+  useEffect(() => {
+    if (!isTypingSystem && systemQueue.length > 0) {
+      setIsTypingSystem(true);
+      const msg = systemQueue[0];
+      let i = 0;
+      function typeWriter() {
+        setAiTyping(msg.slice(0, i));
+        if (i < msg.length) {
+          i++;
+          setTimeout(typeWriter, 20);
+        } else {
+          setMessages((prev) => [...prev, { content: msg, isUser: false }]);
+          setAiTyping("");
+          setIsTypingSystem(false);
+          setSystemQueue((q) => q.slice(1));
+        }
+      }
+      typeWriter();
+    }
+  }, [systemQueue, isTypingSystem]);
+
+  // Função para adicionar mensagem do sistema à fila
+  const onSystemMessage = (msg: string) => {
+    setSystemQueue((q) => [...q, msg]);
+  };
+
+  useEffect(() => {
+    // Log do localStorage para depuração
+    try {
+      const chatHistory = localStorage.getItem("chat_history");
+      console.log("[DEBUG] Conteúdo do localStorage[chat_history]:", chatHistory);
+    } catch (e) {
+      console.warn("[DEBUG] Erro ao acessar localStorage:", e);
+    }
+  }, [messages]);
+
+  // Carregar histórico do localStorage ao montar
+  useEffect(() => {
+    const saved = localStorage.getItem("chat_history");
+    if (saved) {
+      try {
+        setMessages(JSON.parse(saved));
+      } catch (e) {
+        localStorage.removeItem("chat_history");
+      }
+    }
+  }, []);
+
+  // Salvar histórico no localStorage sempre que messages mudar
+  useEffect(() => {
+    localStorage.setItem("chat_history", JSON.stringify(messages));
+  }, [messages]);
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -57,8 +120,8 @@ export default function Page() {
         </header>
         <SettingsPanelProvider>
           <div className="flex h-[calc(100svh-4rem)] bg-[hsl(240_5%_92.16%)] md:rounded-s-3xl md:group-peer-data-[state=collapsed]/sidebar-inset:rounded-s-none transition-all ease-in-out duration-300">
-            <Chat />
-            <SettingsPanel />
+            <Chat messages={messages} setMessages={setMessages} aiTyping={aiTyping} setAiTyping={setAiTyping} />
+            <SettingsPanel onSystemMessage={onSystemMessage} />
           </div>
         </SettingsPanelProvider>
       </SidebarInset>

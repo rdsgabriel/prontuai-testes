@@ -65,7 +65,7 @@ const SettingsPanelProvider = ({ children }: { children: React.ReactNode }) => {
 };
 SettingsPanelProvider.displayName = "SettingsPanelProvider";
 
-const SettingsPanelContent = () => {
+const SettingsPanelContent = ({ onSystemMessage }: { onSystemMessage?: (msg: string) => void }) => {
   const id = React.useId();
 
   return (
@@ -91,7 +91,7 @@ const SettingsPanelContent = () => {
           <h3 className="text-xs font-medium uppercase text-muted-foreground/80 mb-4">
             Selecionar documentos
           </h3>
-          <FileUploadDropArea />
+          <FileUploadDropArea onSystemMessage={onSystemMessage} />
         </div>
       </div>
     </>
@@ -99,7 +99,7 @@ const SettingsPanelContent = () => {
 };
 SettingsPanelContent.displayName = "SettingsPanelContent";
 
-const SettingsPanel = () => {
+const SettingsPanel = ({ onSystemMessage }: { onSystemMessage?: (msg: string) => void }) => {
   const { isMobile, openMobile, setOpenMobile } = useSettingsPanel();
 
   if (isMobile) {
@@ -108,7 +108,7 @@ const SettingsPanel = () => {
         <SheetContent className="w-72 px-4 md:px-6 py-0 bg-[hsl(240_5%_92.16%)] [&>button]:hidden">
           <SheetTitle className="hidden">Settings</SheetTitle>
           <div className="flex h-full w-full flex-col">
-            <SettingsPanelContent />
+            <SettingsPanelContent onSystemMessage={onSystemMessage} />
           </div>
         </SheetContent>
       </Sheet>
@@ -118,7 +118,7 @@ const SettingsPanel = () => {
   return (
     <ScrollArea>
       <div className="w-[300px] px-4 md:px-6">
-        <SettingsPanelContent />
+        <SettingsPanelContent onSystemMessage={onSystemMessage} />
       </div>
     </ScrollArea>
   );
