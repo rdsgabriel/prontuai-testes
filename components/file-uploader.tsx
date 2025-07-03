@@ -22,6 +22,11 @@ import {
   useFileUpload,
 } from "@/hooks/use-file-upload"
 import { Button } from "@/components/ui/button"
+import ExamesComparativoTable, { ExameStatus } from "@/components/exames-comparativo-table"
+
+export type Message =
+  | { content: string; isUser: boolean; type?: "text"; skipTyping?: boolean }
+  | { content: ExameStatus[] | { exames_ocr: string[]; exames_brnet: string[] } | string; isUser: boolean; type: "tabela-exames"; skipTyping?: boolean };
 
 const getFileIcon = (file: { file: File | { type: string; name: string } }) => {
   const fileType = file.file instanceof File ? file.file.type : file.file.type
@@ -66,7 +71,39 @@ async function compararExamesComOpenAI(examesOCR: string[] | string, examesBRNET
 
   const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY; // ou substitua diretamente com a chave (com cautela)
 
-  const prompt = `\nCompare os seguintes exames extraídos do prontuário com os exames previstos no BRNET.\n\n**Exames do prontuário (OCR):**\n${examesOCRText}\n\n**Exames previstos pelo BRNET:**\n${examesBRNETText}\n\nListe:\n1. Exames que coincidem.\n2. Exames que estão faltando no prontuário.\n3. Exames que estão no prontuário, mas não estavam previstos.\nSeja claro e direto.\n`;
+  const prompt = `Compare as duas listas de exames abaixo. Use a lista do BRNET como referência principal. Para cada exame do BRNET, procure na lista do documento (OCR) se existe algum exame equivalente, mesmo que o nome seja diferente (exemplo: "Hemograma completo" e "exame de sangue" devem ser considerados equivalentes). Se encontrar, marque como presente e informe o nome correspondente do OCR. Se não encontrar, marque como ausente.
+
+Para cada exame do BRNET, retorne um objeto com:
+- exame: nome do exame do BRNET (exatamente como está na lista)
+- presente_no_brnet: true
+- presente_no_ocr: true/false
+- versao_brnet: "Previsto"
+- versao_ocr: nome do exame correspondente do OCR (ou "Não encontrado" se não houver)
+
+ATENÇÃO: É OBRIGATÓRIO adicionar ao FINAL do array TODOS os exames do OCR que NÃO têm equivalente no BRNET, marcando:
+- presente_no_brnet: false
+- presente_no_ocr: true
+- versao_brnet: "Não previsto"
+- versao_ocr: nome do exame do OCR
+- exame: nome do exame do OCR
+SE VOCÊ NÃO ADICIONAR ESTES EXTRAS, A RESPOSTA ESTARÁ ERRADA.
+
+Me devolva um array JSON, onde cada objeto tem a seguinte estrutura (nessa ordem de colunas):
+[
+  {
+    "exame": "Hemograma completo",
+    "presente_no_brnet": true,
+    "presente_no_ocr": true,
+    "versao_brnet": "Previsto",
+    "versao_ocr": "exame de sangue"
+  }
+]
+
+⚠️ Me retorne apenas o array JSON, sem explicações extras, sem comentários, sem markdown.
+
+Exames do documento (OCR):\n${examesOCRText}
+
+Exames previstos pelo BRNET:\n${examesBRNETText}`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -87,7 +124,7 @@ async function compararExamesComOpenAI(examesOCR: string[] | string, examesBRNET
         }
       ],
       temperature: 0.3,
-      max_tokens: 600,
+      max_tokens: 3000,
     }),
   });
 
@@ -101,7 +138,7 @@ async function compararExamesComOpenAI(examesOCR: string[] | string, examesBRNET
   return resposta;
 }
 
-export default function Component({ onSystemMessage }: { onSystemMessage?: (msg: string) => void }) {
+export default function Component({ onSystemMessage }: { onSystemMessage?: (msg: Message) => void }) {
   const maxSize = 100 * 1024 * 1024 // 10MB default
   const maxFiles = 10
   const [isImporting, setIsImporting] = useState(false)
@@ -129,7 +166,7 @@ export default function Component({ onSystemMessage }: { onSystemMessage?: (msg:
     if (files.length === 0 || isImporting) return;
   
     setIsImporting(true);
-    onSystemMessage?.("Recebi seu arquivo, aguarde um pouquinho enquanto analiso...");
+    onSystemMessage?.({ type: "text", content: "Recebi seu arquivo, aguarde um pouquinho enquanto analiso...", isUser: false });
   
     try {
       const formData = new FormData();
@@ -170,18 +207,18 @@ export default function Component({ onSystemMessage }: { onSystemMessage?: (msg:
   
       console.log("✅ OCR finalizado:");
       console.log("→ CPF detectado:", data.cpf || "Não encontrado");
-      onSystemMessage?.(`CPF detectado no documento: ${data.cpf || "Não encontrado"}`);
+      onSystemMessage?.({ type: "text", content: `CPF detectado no documento: ${data.cpf || "Não encontrado"}`, isUser: false });
       console.log("→ Exames extraídos do OCR:", data.exames || "Nenhum");
-      onSystemMessage?.(`Exames extraídos do documento: ${data.exames || "Nenhum"}`);
+      onSystemMessage?.({ type: "text", content: `Exames extraídos do documento: ${data.exames || "Nenhum"}`, isUser: false });
   
       if (!data.cpf) {
         console.warn("⚠️ Nenhum CPF encontrado. Interrompendo consulta BR MED.");
-        onSystemMessage?.("⚠️ Nenhum CPF encontrado. Interrompendo consulta BR MED.");
+        onSystemMessage?.({ type: "text", content: "⚠️ Nenhum CPF encontrado. Interrompendo consulta BR MED.", isUser: false });
         return;
       }
   
       console.log("🔍 Enviando CPF para consultar BR MED...");
-      onSystemMessage?.("Usando o CPF para consulta no BRNET...");
+      onSystemMessage?.({ type: "text", content: "Usando o CPF para consulta no BRNET...", isUser: false });
   
       const rpaRes = await fetch("http://localhost:8000/consultar-brmed", {
         method: "POST",
@@ -193,25 +230,46 @@ export default function Component({ onSystemMessage }: { onSystemMessage?: (msg:
   
       if (!rpaRes.ok || rpaData.erro) {
         console.error("❌ Erro ao consultar BR MED:", rpaData.erro || rpaData);
-        onSystemMessage?.(`❌ Erro ao consultar BR MED: ${rpaData.erro || rpaData}`);
+        onSystemMessage?.({ type: "text", content: `❌ Erro ao consultar BR MED: ${rpaData.erro || rpaData}`, isUser: false });
         return;
       }
   
       console.log("✅ Dados do BR MED recebidos:");
-      onSystemMessage?.("Dados do BRNET recebidos.");
+      onSystemMessage?.({ type: "text", content: "Dados do BRNET extraídos com sucesso.", isUser: false });
       console.log("→ Nome:", rpaData.nome);
-      onSystemMessage?.(`Nome: ${rpaData.nome}`);
+      onSystemMessage?.({ type: "text", content: `Nome: ${rpaData.nome}`, isUser: false });
       console.log("→ Exames do BR MED:", rpaData.exames || "Nenhum");
-      onSystemMessage?.(`Exames do BRNET: ${rpaData.exames || "Nenhum"}`);
+      onSystemMessage?.({ type: "text", content: `Exames do BRNET: ${rpaData.exames || "Nenhum"}`, isUser: false });
 
       // Chamar OpenAI para comparar exames
       if (data.exames && rpaData.exames) {
         try {
-          onSystemMessage?.("📄 Análise da OpenAI:");
+          onSystemMessage?.({ type: "text", content: "Vou analisar pra você...", isUser: false });
           const respostaOpenAI = await compararExamesComOpenAI(data.exames, rpaData.exames);
-          onSystemMessage?.(respostaOpenAI);
+          let jsonString = respostaOpenAI.trim();
+          // Remove blocos markdown se houver
+          jsonString = jsonString.replace(/^```json/i, "");
+          jsonString = jsonString.replace(/^```/, "");
+          jsonString = jsonString.replace(/```$/, "");
+          jsonString = jsonString.trim();
+
+          try {
+            const parsed = JSON.parse(jsonString);
+            if (Array.isArray(parsed) && parsed[0]?.exame) {
+              onSystemMessage?.({ type: "tabela-exames", content: JSON.stringify(parsed), isUser: false, skipTyping: true });
+              // Verifica se há exames do BRNET faltando no OCR
+              const faltantes = parsed.filter(e => e.presente_no_brnet && !e.presente_no_ocr);
+              if (faltantes.length > 0) {
+                onSystemMessage?.({ type: "text", content: "Como há exames faltantes, não posso autorizar o envio deste documento. Inclua os exames necessários e tente novamente.", isUser: false });
+              } else {
+                onSystemMessage?.({ type: "text", content: "Como não há exames faltantes, posso autorizar o envio deste documento.", isUser: false });
+              }
+              return;
+            }
+          } catch {}
+          onSystemMessage?.({ type: "text", content: respostaOpenAI, isUser: false, skipTyping: true });
         } catch (e: any) {
-          onSystemMessage?.("❌ Erro ao comparar exames com OpenAI: " + (e?.message || e));
+          onSystemMessage?.({ type: "text", content: "❌ Erro ao comparar exames com OpenAI: " + (e?.message || e), isUser: false });
         }
       }
   

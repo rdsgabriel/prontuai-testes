@@ -24,11 +24,8 @@ import { ChatMessage } from "@/components/chat-message";
 import { useRef, useEffect, useState } from "react";
 import { Bot, Square, RefreshCw  } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Message {
-  content: string;
-  isUser: boolean;
-}
+import ExamesComparativoTable from "@/components/exames-comparativo-table";
+import { Message } from "@/components/file-uploader";
 
 export default function Chat({
   messages,
@@ -207,11 +204,60 @@ export default function Chat({
                 Hoje
               </div>
             </div>
-            {messages.map((message, index) => (
-              <ChatMessage key={index} isUser={message.isUser}>
-                <p>{message.content}</p>
-              </ChatMessage>
-            ))}
+            {messages.map((message, index) => {
+              // Detecta JSON válido em mensagens de texto (mesmo dentro de blocos markdown)
+              if (
+                message.type !== "tabela-exames" &&
+                typeof message.content === "string"
+              ) {
+                let jsonString = message.content.trim();
+                // Remove blocos markdown e espaços extras
+                jsonString = jsonString.replace(/^```json/i, "");
+                jsonString = jsonString.replace(/^```/, "");
+                jsonString = jsonString.replace(/```$/, "");
+                jsonString = jsonString.trim();
+                // Tenta parsear se parece um array
+                if (jsonString.startsWith("[") && jsonString.endsWith("]")) {
+                  try {
+                    const exames = JSON.parse(jsonString);
+                    if (Array.isArray(exames) && exames[0]?.exame) {
+                      return (
+                        <ChatMessage key={index} isUser={message.isUser}>
+                          <ExamesComparativoTable exames={exames} />
+                        </ChatMessage>
+                      );
+                    }
+                  } catch (e) {
+                    console.warn("Falha ao parsear JSON para tabela:", e, jsonString);
+                  }
+                }
+              }
+              return (
+                <ChatMessage key={index} isUser={message.isUser}>
+                  {message.type === "tabela-exames" ? (
+                    (() => {
+                      let exames: any[] | null = null;
+                      if (Array.isArray(message.content)) {
+                        exames = message.content;
+                      } else if (typeof message.content === "string") {
+                        try {
+                          const parsed = JSON.parse(message.content);
+                          if (Array.isArray(parsed) && parsed[0]?.exame) {
+                            exames = parsed;
+                          }
+                        } catch {}
+                      }
+                      if (exames) {
+                        return <ExamesComparativoTable exames={exames} />;
+                      }
+                      return <p>Erro ao exibir tabela de exames.</p>;
+                    })()
+                  ) : (
+                    <p>{message.content}</p>
+                  )}
+                </ChatMessage>
+              );
+            })}
             {isLoading && !aiTyping && (
               <ChatMessage>
                 <div className="flex items-center gap-1 h-6">

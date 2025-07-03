@@ -17,6 +17,8 @@ import { Sheet, SheetTitle, SheetContent } from "@/components/ui/sheet";
 import * as React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileUp } from "lucide-react";
+import { Message } from "@/components/file-uploader";
+import { ExameStatus } from "@/components/exames-comparativo-table";
 
 type SettingsPanelContext = {
   openMobile: boolean;
@@ -65,7 +67,7 @@ const SettingsPanelProvider = ({ children }: { children: React.ReactNode }) => {
 };
 SettingsPanelProvider.displayName = "SettingsPanelProvider";
 
-const SettingsPanelContent = ({ onSystemMessage }: { onSystemMessage?: (msg: string) => void }) => {
+const SettingsPanelContent = ({ onSystemMessage }: { onSystemMessage?: (msg: Message) => void }) => {
   const id = React.useId();
 
   return (
@@ -99,7 +101,7 @@ const SettingsPanelContent = ({ onSystemMessage }: { onSystemMessage?: (msg: str
 };
 SettingsPanelContent.displayName = "SettingsPanelContent";
 
-const SettingsPanel = ({ onSystemMessage }: { onSystemMessage?: (msg: string) => void }) => {
+const SettingsPanel = ({ onSystemMessage }: { onSystemMessage?: (msg: Message) => void }) => {
   const { isMobile, openMobile, setOpenMobile } = useSettingsPanel();
 
   if (isMobile) {

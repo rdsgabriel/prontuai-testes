@@ -14,17 +14,12 @@ import {
   SettingsPanel,
 } from "@/components/settings-panel";
 import Chat from "@/components/chat";
-
-// Definir o tipo Message
-interface Message {
-  content: string;
-  isUser: boolean;
-}
+import { Message } from "@/components/file-uploader";
 
 export default function Page() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [aiTyping, setAiTyping] = useState("");
-  const [systemQueue, setSystemQueue] = useState<string[]>([]);
+  const [systemQueue, setSystemQueue] = useState<Message[]>([]);
   const [isTypingSystem, setIsTypingSystem] = useState(false);
 
   // Processa a fila de mensagens do sistema
@@ -32,25 +27,32 @@ export default function Page() {
     if (!isTypingSystem && systemQueue.length > 0) {
       setIsTypingSystem(true);
       const msg = systemQueue[0];
-      let i = 0;
-      function typeWriter() {
-        setAiTyping(msg.slice(0, i));
-        if (i < msg.length) {
-          i++;
-          setTimeout(typeWriter, 20);
-        } else {
-          setMessages((prev) => [...prev, { content: msg, isUser: false }]);
-          setAiTyping("");
-          setIsTypingSystem(false);
-          setSystemQueue((q) => q.slice(1));
+      // Só pula aiTyping para type: "tabela-exames"
+      if (msg.type === "tabela-exames") {
+        setMessages((prev) => [...prev, msg]);
+        setIsTypingSystem(false);
+        setSystemQueue((q) => q.slice(1));
+      } else {
+        let i = 0;
+        function typeWriter() {
+          setAiTyping((msg.content as string).slice(0, i));
+          if (i < (msg.content as string).length) {
+            i++;
+            setTimeout(typeWriter, 20);
+          } else {
+            setMessages((prev) => [...prev, msg]);
+            setAiTyping("");
+            setIsTypingSystem(false);
+            setSystemQueue((q) => q.slice(1));
+          }
         }
+        typeWriter();
       }
-      typeWriter();
     }
   }, [systemQueue, isTypingSystem]);
 
   // Função para adicionar mensagem do sistema à fila
-  const onSystemMessage = (msg: string) => {
+  const onSystemMessage = (msg: Message) => {
     setSystemQueue((q) => [...q, msg]);
   };
 
