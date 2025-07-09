@@ -10,7 +10,6 @@ export default function LoginPage() {
     <div className="container relative grid h-screen flex-col items-center justify-center lg:max-w-none lg:grid-cols-2 lg:px-0 bg-[#F3F3F3]">
       <div className="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex">
         <div className="absolute inset-0 bg-sidebar" />
-
         <div className="relative z-20 flex flex-col items-start text-lg font-medium">
           <Image
             src="/logo.png"
@@ -21,9 +20,10 @@ export default function LoginPage() {
           />
 
           <h1 className="mt-16 text-4xl font-medium tracking-tight">
-            <span className="font-bold">ProntuAI</span> - A Inteligência Artificial da BRMED.
+            <span className="font-semibold">Prontu<span className="font-bold">AI</span></span> - A Inteligência Artificial da BRMED.
           </h1>
           <h1 className="mt-4 text-xl font-light">Analise seus prontuários de forma automatizada e segura.</h1>
+          
       </div>
 
         
@@ -31,7 +31,7 @@ export default function LoginPage() {
           <blockquote className="space-y-2">
             <p className="text-lg">
               “Esta ferramenta de IA me ajudou a economizar inúmeras horas de
-              trabalho me permitiu focar no que realmente importa.”
+              trabalho me permitiu focar no que realmente importa."
             </p>
             <footer className="text-sm">Técnica de enfermagem</footer>
           </blockquote>
@@ -61,14 +61,14 @@ export default function LoginPage() {
           <p className="px-8 text-center text-sm text-muted-foreground">
             Ao clicar em continuar, você concorda com nossos{" "}
             <a
-              href="/terms"
+              href="/"
               className="underline underline-offset-4 hover:text-primary"
             >
               Termos de Serviço
             </a>{" "}
             e{" "}
             <a
-              href="/privacy"
+              href="/"
               className="underline underline-offset-4 hover:text-primary"
             >
               Política de Privacidade
