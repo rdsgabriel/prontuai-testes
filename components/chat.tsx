@@ -12,9 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  RiCodeSSlashLine,
-  RiShareLine,
-  RiShareCircleLine,
   RiShining2Line,
   RiAttachment2,
   RiMicLine,
@@ -26,6 +23,7 @@ import { Bot, Square, RefreshCw  } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ExamesComparativoTable from "@/components/exames-comparativo-table";
 import { Message } from "@/components/file-uploader";
+import { ExameStatus } from "@/components/exames-comparativo-table";
 
 export default function Chat({
   messages,
@@ -114,8 +112,8 @@ export default function Chat({
       }
       typeWriter();
 
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
         setMessages((prev) => [
           ...prev,
           { content: "Operação cancelada pelo usuário.", isUser: false },
@@ -149,11 +147,6 @@ export default function Chat({
       abortControllerRef.current.abort();
     }
   };
-
-  const addSystemMessage = (content: string) => {
-    setMessages((prev) => [...prev, { content, isUser: false }]);
-  };
-  
 
   return (
     <ScrollArea className="flex-1 [&>div>div]:h-full w-full shadow-md md:rounded-s-[inherit] min-[1024px]:rounded-e-3xl bg-background">
@@ -236,7 +229,7 @@ export default function Chat({
                 <ChatMessage key={index} isUser={message.isUser}>
                   {message.type === "tabela-exames" ? (
                     (() => {
-                      let exames: any[] | null = null;
+                      let exames: ExameStatus[] | null = null;
                       if (Array.isArray(message.content)) {
                         exames = message.content;
                       } else if (typeof message.content === "string") {

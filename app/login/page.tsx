@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { RiGoogleFill } from "@remixicon/react";
+import Link from "next/link";
 
 export default function LoginPage() {
   return (
@@ -31,7 +32,7 @@ export default function LoginPage() {
           <blockquote className="space-y-2">
             <p className="text-lg">
               “Esta ferramenta de IA me ajudou a economizar inúmeras horas de
-              trabalho me permitiu focar no que realmente importa."
+              trabalho me permitiu focar no que realmente importa.&quot;
             </p>
             <footer className="text-sm">Técnica de enfermagem</footer>
           </blockquote>
@@ -60,19 +61,19 @@ export default function LoginPage() {
           </Button>
           <p className="px-8 text-center text-sm text-muted-foreground">
             Ao clicar em continuar, você concorda com nossos{" "}
-            <a
+            <Link
               href="/"
               className="underline underline-offset-4 hover:text-primary"
             >
               Termos de Serviço
-            </a>{" "}
+            </Link>{" "}
             e{" "}
-            <a
+            <Link
               href="/"
               className="underline underline-offset-4 hover:text-primary"
             >
               Política de Privacidade
-            </a>
+            </Link>
             .
           </p>
         </div>

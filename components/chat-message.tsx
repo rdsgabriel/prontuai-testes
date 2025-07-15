@@ -6,11 +6,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  RiCodeSSlashLine,
   RiBookLine,
   RiLoopRightFill,
   RiCheckLine,
 } from "@remixicon/react";
+import Image from "next/image";
 
 type ChatMessageProps = {
   isUser?: boolean;
@@ -25,7 +25,7 @@ export function ChatMessage({ isUser, children }: ChatMessageProps) {
         isUser && "justify-end",
       )}
     >
-      <img
+      <Image
         className={cn(
           "rounded-full",
           isUser ? "order-1" : "border border-black/[0.08] shadow-sm",

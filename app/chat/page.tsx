@@ -61,8 +61,8 @@ export default function Page() {
     try {
       const chatHistory = localStorage.getItem("chat_history");
       console.log("[DEBUG] Conteúdo do localStorage[chat_history]:", chatHistory);
-    } catch (e) {
-      console.warn("[DEBUG] Erro ao acessar localStorage:", e);
+    } catch {
+      console.warn("[DEBUG] Erro ao acessar localStorage");
     }
   }, [messages]);
 
@@ -72,7 +72,7 @@ export default function Page() {
     if (saved) {
       try {
         setMessages(JSON.parse(saved));
-      } catch (e) {
+      } catch {
         localStorage.removeItem("chat_history");
       }
     }

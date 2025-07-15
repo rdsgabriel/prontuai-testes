@@ -22,7 +22,7 @@ import {
   useFileUpload,
 } from "@/hooks/use-file-upload"
 import { Button } from "@/components/ui/button"
-import ExamesComparativoTable, { ExameStatus } from "@/components/exames-comparativo-table"
+import type { ExameStatus } from "@/components/exames-comparativo-table";
 
 export type Message =
   | { content: string; isUser: boolean; type?: "text"; skipTyping?: boolean }
@@ -202,7 +202,6 @@ async function compararExamesComOpenAI(examesOCR: string[] | string, examesBRNET
 };
 
       // Listas normalizadas
-      const examesBRNET = parsed.filter(e => e.presente_no_brnet).map(e => e.exame);
       const examesOCR = parsed.filter(e => e.presente_no_ocr && !e.presente_no_brnet).map(e => e.versao_ocr || e.exame);
       // Para cada exame do BRNET marcado como ausente, tenta casar por equivalência
       for (const item of parsed) {
@@ -251,7 +250,7 @@ async function compararExamesComOpenAI(examesOCR: string[] | string, examesBRNET
       });
       resposta = JSON.stringify(deduped);
     }
-  } catch (e) {
+  } catch {
     // Se não for JSON válido, retorna como veio
   }
   return resposta;
@@ -290,7 +289,7 @@ export default function Component({ onSystemMessage }: { onSystemMessage?: (msg:
     try {
       const formData = new FormData();
       let fileToSend = files[0].file;
-      let fileName = files[0].file.name;
+      const fileName = files[0].file.name;
   
       if (!(fileToSend instanceof File)) {
         try {
@@ -302,8 +301,8 @@ export default function Component({ onSystemMessage }: { onSystemMessage?: (msg:
           const response = await fetch(fileMeta.url);
           const blob = await response.blob();
           fileToSend = new File([blob], fileMeta.name, { type: fileMeta.type });
-        } catch (e) {
-          console.error("❌ Erro ao obter arquivo remoto:", e);
+        } catch {
+          console.error("❌ Erro ao obter arquivo remoto");
           return;
         }
       }
@@ -387,8 +386,8 @@ export default function Component({ onSystemMessage }: { onSystemMessage?: (msg:
             }
           } catch {}
           onSystemMessage?.({ type: "text", content: respostaOpenAI, isUser: false, skipTyping: true });
-        } catch (e: any) {
-          onSystemMessage?.({ type: "text", content: "❌ Erro ao comparar exames com OpenAI: " + (e?.message || e), isUser: false });
+        } catch (e: unknown) {
+          onSystemMessage?.({ type: "text", content: "❌ Erro ao comparar exames com OpenAI: " + ((e as Error)?.message || e), isUser: false });
         }
       }
   

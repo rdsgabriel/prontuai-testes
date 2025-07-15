@@ -2,23 +2,12 @@
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RiQuillPenAiLine, RiSettingsLine } from "@remixicon/react";
-import { Label } from "@/components/ui/label";
-import FileUploadDropArea from "@/components/file-uploader";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import SliderControl from "@/components/slider-control";
 import { Sheet, SheetTitle, SheetContent } from "@/components/ui/sheet";
 import * as React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileUp } from "lucide-react";
 import { Message } from "@/components/file-uploader";
-import { ExameStatus } from "@/components/exames-comparativo-table";
+import FileUploadDropArea from "@/components/file-uploader";
+import { Button } from "@/components/ui/button";
 
 type SettingsPanelContext = {
   openMobile: boolean;
@@ -68,8 +57,6 @@ const SettingsPanelProvider = ({ children }: { children: React.ReactNode }) => {
 SettingsPanelProvider.displayName = "SettingsPanelProvider";
 
 const SettingsPanelContent = ({ onSystemMessage }: { onSystemMessage?: (msg: Message) => void }) => {
-  const id = React.useId();
-
   return (
     <>
       {/* Sidebar header */}
@@ -142,7 +129,7 @@ const SettingsPanelTrigger = ({
     <Button
       variant="ghost"
       className="px-2"
-      onClick={(event) => {
+      onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
         onClick?.(event);
         togglePanel();
       }}

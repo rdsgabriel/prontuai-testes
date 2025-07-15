@@ -1,7 +1,6 @@
 import * as React from "react";
 import Image from "next/image";
 
-import { TeamSwitcher } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -18,9 +17,7 @@ import {
   RiChat1Line,
   RiBardLine,
   RiMickeyLine,
-  RiMicLine,
   RiCheckDoubleLine,
-  RiBracesLine,
   RiPlanetLine,
   RiSeedlingLine,
   RiSettings3Line,
