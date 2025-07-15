@@ -11,7 +11,7 @@ const authOptions = {
   ],
   pages: {
     signIn: "/login",
-    callbackUrl: "/chat",
+    //callbackUrl: "/chat",
   },
   callbacks: {
     async signIn({ profile }: { profile?: Profile }) {
