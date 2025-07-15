@@ -62,14 +62,14 @@ export default function Chat({
 
     try {
       const pergunta = userMessage;
-      // Send only the last 10 messages (5 pairs) as context
       const recentHistory = messages.slice(-10);
       const historico = recentHistory.map(msg => ({
         role: msg.isUser ? "user" : "assistant",
         content: msg.content,
       }));
 
-      const response = await fetch("http://localhost:8000/faq", {
+      const response = await fetch("https://toad-needed-radically.ngrok-free.app/faq", { 
+
         method: "POST",
         headers: {
           "Content-Type": "application/json",

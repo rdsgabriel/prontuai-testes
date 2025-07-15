@@ -71,39 +71,7 @@ async function compararExamesComOpenAI(examesOCR: string[] | string, examesBRNET
 
   const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY; // ou substitua diretamente com a chave (com cautela)
 
-  const prompt = `Compare as duas listas de exames abaixo. Use a lista do BRNET como referência principal. Para cada exame do BRNET, procure na lista do documento (OCR) se existe algum exame equivalente, mesmo que o nome seja diferente (exemplo: "Hemograma completo" e "exame de sangue" devem ser considerados equivalentes). Se encontrar, marque como presente e informe o nome correspondente do OCR. Se não encontrar, marque como ausente.
-
-Para cada exame do BRNET, retorne um objeto com:
-- exame: nome do exame do BRNET (exatamente como está na lista)
-- presente_no_brnet: true
-- presente_no_ocr: true/false
-- versao_brnet: "Previsto"
-- versao_ocr: nome do exame correspondente do OCR (ou "Não encontrado" se não houver)
-
-ATENÇÃO: É OBRIGATÓRIO adicionar ao FINAL do array TODOS os exames do OCR que NÃO têm equivalente no BRNET, marcando:
-- presente_no_brnet: false
-- presente_no_ocr: true
-- versao_brnet: "Não previsto"
-- versao_ocr: nome do exame do OCR
-- exame: nome do exame do OCR
-SE VOCÊ NÃO ADICIONAR ESTES EXTRAS, A RESPOSTA ESTARÁ ERRADA.
-
-Me devolva um array JSON, onde cada objeto tem a seguinte estrutura (nessa ordem de colunas):
-[
-  {
-    "exame": "Hemograma completo",
-    "presente_no_brnet": true,
-    "presente_no_ocr": true,
-    "versao_brnet": "Previsto",
-    "versao_ocr": "exame de sangue"
-  }
-]
-
-⚠️ Me retorne apenas o array JSON, sem explicações extras, sem comentários, sem markdown.
-
-Exames do documento (OCR):\n${examesOCRText}
-
-Exames previstos pelo BRNET:\n${examesBRNETText}`;
+  const prompt = `Compare as duas listas de exames abaixo. Use a lista do BRNET como referência principal. Para cada exame do BRNET, procure na lista do documento (OCR) se existe algum exame equivalente, mesmo que o nome seja diferente (exemplo: \"Hemograma completo\" e \"exame de sangue\" devem ser considerados equivalentes). Se encontrar, marque como presente e informe o nome correspondente do OCR. Se não encontrar, marque como ausente.\n\nExemplos de equivalência:\n- \"Hemograma completo\" e \"Hemograma completo com plaquetas\" são equivalentes.\n- \"Hemograma completo\" e \"exame de sangue\" são equivalentes.\n- \"Glicemia de jejum\" e \"glicemia\" são equivalentes.\n- \"Clínico ocupacional\" e \"consulta clínica ocupacional\" são equivalentes.\n\nPara cada exame do BRNET, retorne um objeto com:\n- exame: nome do exame do BRNET (exatamente como está na lista)\n- presente_no_brnet: true\n- presente_no_ocr: true/false\n- versao_brnet: \"Previsto\"\n- versao_ocr: nome do exame correspondente do OCR (ou \"Não encontrado\" se não houver)\n\nATENÇÃO: É OBRIGATÓRIO adicionar ao FINAL do array TODOS os exames do OCR que NÃO têm equivalente no BRNET, marcando:\n- presente_no_brnet: false\n- presente_no_ocr: true\n- versao_brnet: \"Não previsto\"\n- versao_ocr: nome do exame do OCR\n- exame: nome do exame do OCR\nSE VOCÊ NÃO ADICIONAR ESTES EXTRAS, A RESPOSTA ESTARÁ ERRADA.\n\nMe devolva um array JSON, onde cada objeto tem a seguinte estrutura (nessa ordem de colunas):\n[\n  {\n    \"exame\": \"Hemograma completo\",\n    \"presente_no_brnet\": true,\n    \"presente_no_ocr\": true,\n    \"versao_brnet\": \"Previsto\",\n    \"versao_ocr\": \"exame de sangue\"\n  }\n]\n\n⚠️ Me retorne apenas o array JSON, sem explicações extras, sem comentários, sem markdown.\n\nExames do documento (OCR):\n${examesOCRText}\n\nExames previstos pelo BRNET:\n${examesBRNETText}`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -134,7 +102,158 @@ Exames previstos pelo BRNET:\n${examesBRNETText}`;
   }
 
   const data = await res.json();
-  const resposta = data.choices[0].message.content;
+  let resposta = data.choices[0].message.content;
+  // Remove blocos markdown se houver
+  resposta = resposta.trim().replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+
+  // Fallback local para equivalências caso a OpenAI não reconheça
+  try {
+    const parsed = JSON.parse(resposta);
+    if (Array.isArray(parsed) && parsed[0]?.exame) {
+      // Normaliza string (remove acentos, caixa baixa, etc)
+      const normalize = (str: string) => str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().replace(/[^a-z0-9]/gi, " ").replace(/\s+/g, " ").trim();
+      // Mapeia equivalências conhecidas
+    /**
+ * Dicionário de equivalências entre nomes (e variações) de exames/consultas.
+ * - Todas as chaves estão em minúsculas e sem acentos para facilitar o
+ *   *match* com o que chega da UI/Back-end.
+ * - Cada entrada é bidirecional: se A referencia B, B referencia A.
+ * - Para evitar colisões, adote sempre o nome "mais oficial" como chave.
+ */
+ const equivalencias: Record<string, string[]> = {
+  /* Hemograma / sangue ---------------------------------------------------- */
+  "hemograma completo com plaquetas": [
+    "hemograma completo",
+    "exame de sangue",
+    "hemograma",
+    "hc",
+    "hemograma c/ plaquetas"
+  ],
+  "hemograma completo": [
+    "hemograma completo com plaquetas",
+    "exame de sangue",
+    "hemograma",
+    "hc"
+  ],
+  "exame de sangue": [
+    "hemograma completo com plaquetas",
+    "hemograma completo",
+    "hemograma",
+    "hc"
+  ],
+
+  /* Glicose --------------------------------------------------------------- */
+  "glicemia de jejum": ["glicemia", "glicemia em jejum", "glicose de jejum"],
+  "glicemia": ["glicemia de jejum", "glicose", "teste de glicose"],
+
+  /* Perfil lipídico ------------------------------------------------------- */
+  "colesterol total": ["colesterol total e fracoes", "perfil lipidico", "lipidograma"],
+  "colesterol total e fracoes": ["colesterol total", "perfil lipidico", "lipidograma"],
+  "perfil lipidico": [
+    "colesterol total",
+    "colesterol total e fracoes",
+    "lipidograma",
+    "hdl",
+    "ldl",
+    "triglicerideos"
+  ],
+  "triglicerideos": ["perfil lipidico", "lipidograma"],
+
+  /* Tireoide -------------------------------------------------------------- */
+  "tsh": ["hormonio estimulante da tireoide", "exame de tireoide", "tsh basal", "tsh ultra sensível"],
+  "t4 livre": ["tiroxina livre", "exame de tireoide", "t4l"],
+  "funcao tireoidiana": ["tsh", "t4 livre", "painel tireoidiano"],
+
+  /* Função renal / ácido úrico ------------------------------------------- */
+  "acido urico": ["uricemia", "exame de acido urico"],
+  "creatinina": ["creatinina serica", "exame de creatinina"],
+  "ureia": ["ureia serica", "exame de ureia"],
+
+  /* Urina ----------------------------------------------------------------- */
+  "exame de urina tipo i": ["eas", "urina tipo 1", "urina rotina", "sumario de urina"],
+  "eas": ["exame de urina tipo i", "urina tipo 1", "urina rotina", "sumario de urina"],
+
+  /* Saúde da mulher ------------------------------------------------------- */
+  "papanicolau": ["citologia oncologica", "preventivo", "exame preventivo"],
+  "citologia oncologica": ["papanicolau", "preventivo", "exame preventivo"],
+
+  /* Saúde do homem -------------------------------------------------------- */
+  "psa": ["antigeno prostatico especifico", "psa total"],
+  "antigeno prostatico especifico": ["psa", "psa total"],
+
+  /* Imagem ---------------------------------------------------------------- */
+  "radiografia de torax": ["raio x de torax", "rx de torax", "radiografia toracica"],
+  "raio x de torax": ["radiografia de torax", "rx de torax", "radiografia toracica"],
+  "ecografia abdominal": ["ultrassom abdominal", "usg abdominal", "ultrassonografia abdominal"],
+  "ultrassom abdominal": ["ecografia abdominal", "usg abdominal", "ultrassonografia abdominal"],
+  "ressonancia magnetica do joelho": ["rm joelho", "ressonancia joelho", "rm de joelho"],
+
+  /* Medicina ocupacional -------------------------------------------------- */
+  "clinico ocupacional": [
+    "consulta clinica ocupacional",
+    "exame ocupacional",
+    "medicina ocupacional"
+  ],
+  "consulta clinica ocupacional": [
+    "clinico ocupacional",
+    "exame ocupacional",
+    "medicina ocupacional"
+  ]
+};
+
+      // Listas normalizadas
+      const examesBRNET = parsed.filter(e => e.presente_no_brnet).map(e => e.exame);
+      const examesOCR = parsed.filter(e => e.presente_no_ocr && !e.presente_no_brnet).map(e => e.versao_ocr || e.exame);
+      // Para cada exame do BRNET marcado como ausente, tenta casar por equivalência
+      for (const item of parsed) {
+        if (item.presente_no_brnet && !item.presente_no_ocr) {
+          const normBRNET = normalize(item.exame);
+          // 1. Procura equivalência direta
+          let found = false;
+          for (const [key, aliases] of Object.entries(equivalencias)) {
+            if (normalize(key) === normBRNET || aliases.some(a => normalize(a) === normBRNET)) {
+              // Procura no OCR por qualquer alias
+              for (const ocr of examesOCR) {
+                const normOCR = normalize(ocr);
+                if (normalize(key) === normOCR || aliases.some(a => normalize(a) === normOCR)) {
+                  item.presente_no_ocr = true;
+                  item.versao_ocr = ocr;
+                  found = true;
+                  break;
+                }
+              }
+            }
+            if (found) break;
+          }
+          // 2. Procura substring (fallback genérico)
+          if (!found) {
+            for (const ocr of examesOCR) {
+              const normOCR = normalize(ocr);
+              if (normBRNET.includes(normOCR) || normOCR.includes(normBRNET)) {
+                item.presente_no_ocr = true;
+                item.versao_ocr = ocr;
+                break;
+              }
+            }
+          }
+        }
+      }
+      // Remover duplicatas de extras: só adicionar extras cujo nome normalizado não esteja já presente entre os previstos
+      const previstosNorm = new Set(parsed.filter(e => e.presente_no_brnet).map(e => normalize(e.versao_ocr || e.exame)));
+      const seenExtras = new Set<string>();
+      const deduped = parsed.filter((e) => {
+        if (e.presente_no_brnet) return true;
+        const norm = normalize(e.versao_ocr || e.exame);
+        if (previstosNorm.has(norm)) return false;
+        if (seenExtras.has(norm)) return false;
+        seenExtras.add(norm);
+        return true;
+      });
+      resposta = JSON.stringify(deduped);
+    }
+  } catch (e) {
+    // Se não for JSON válido, retorna como veio
+  }
   return resposta;
 }
 
@@ -193,7 +312,7 @@ export default function Component({ onSystemMessage }: { onSystemMessage?: (msg:
   
       console.log("📤 Enviando arquivo para OCR...");
   
-      const res = await fetch("http://localhost:8000/ocr", {
+      const res = await fetch("https://toad-needed-radically.ngrok-free.app/ocr", {
         method: "POST",
         body: formData,
       });

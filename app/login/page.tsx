@@ -20,7 +20,7 @@ export default function LoginPage() {
           />
 
           <h1 className="mt-16 text-4xl font-medium tracking-tight">
-            <span className="font-semibold">Prontu<span className="font-bold">AI</span></span> - A Inteligência Artificial da BRMED.
+            <span className="font-semibold">Prontu<span className="font-bold">AI</span></span> - A Inteligência Artificial da BR MED.
           </h1>
           <h1 className="mt-4 text-xl font-light">Analise seus prontuários de forma automatizada e segura.</h1>
           
@@ -46,7 +46,7 @@ export default function LoginPage() {
               Prontu<span className="font-bold text-cyan-800">AI</span>
               <br /> 
             </h1>
-            <span className="font-medium text-">A Inteligência Artifical da <span className="font-semibold" >BRMED</span>.</span>
+            <span className="font-medium text-">A Inteligência Artifical da <span className="font-semibold" >BR MED</span>.</span>
             <p className="text-sm text-muted-foreground mt-4">
               Faça login com sua conta Google Corporativa para continuar.
             </p>
